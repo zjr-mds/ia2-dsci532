@@ -1,55 +1,40 @@
 library(dash)
-library(dashCoreComponents)
 library(dashHtmlComponents)
-library(dashBootstrapComponents)
+library(dashCoreComponents)
 library(ggplot2)
 library(plotly)
 
+movie <- read.csv('data/movies_clean_df.csv') %>%
+  select(-Title)
+
+
 app <- Dash$new(external_stylesheets = dbcThemes$BOOTSTRAP)
 
-msleep2 <- readr::read_csv(here::here('data', 'msleep.csv'))
-
 app$layout(
-    dbcContainer(
-        list(
-            htmlH1('Dashr heroky deployment'),
-            dccGraph(id='plot-area'),
-            htmlDiv(id='output-area'),
-            htmlBr(),
-            htmlDiv(id='output-area2'),
-            htmlBr(),
-            dccDropdown(
-                id='col-select',
-                options = msleep2 %>% colnames %>% purrr::map(function(col) list(label = col, value = col)),
-                value='bodywt')
-        )
+  dbcContainer(
+    list(
+      dccGraph(id='plot-area'),
+      dccDropdown(
+        id='col-select',
+        options = movie %>% 
+          colnames() %>%
+          purrr::map(function(col) list(label = col, value = col)), 
+        value='IMDB.Rating')
     )
+  )
 )
 
 app$callback(
-    output('plot-area', 'figure'),
-    list(input('col-select', 'value')),
-    function(xcol) {
-        p <- ggplot(msleep2) +
-            aes(x = !!sym(xcol),
-                y = sleep_total,
-                color = vore,
-                text = name) +
-            geom_point() +
-            scale_x_log10() +
-            ggthemes::scale_color_tableau()
-        ggplotly(p) %>% layout(dragmode = 'select')
-    }
+  output('plot-area', 'figure'),
+  list(input('col-select', 'value')),
+  function(col) {
+      p <- movie %>% 
+        ggplot(aes(x = `Major.Genre`, y = !!sym(col), fill = `Major.Genre`)) +
+        geom_boxplot()+
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+        ggplotly(p)
+  }
 )
 
-app$callback(
-    list(output('output-area', 'children'),
-         output('output-area2', 'children')),
-    list(input('plot-area', 'selectedData'),
-         input('plot-area', 'hoverData')),
-    function(selected_data, hover_data) {
-        list(toString(selected_data), toString(hover_data))
-    }
-)
 
-app$run_server(host = '0.0.0.0')
+app$run_server(host =  '0.0.0.0')
